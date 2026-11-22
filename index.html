@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Group Fit Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400&family=Instrument+Serif&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a light analytics workspace. Grey canvas, white cards, black as the working colour (bars, active states, featured cards),
+   and pastel blocks only where colour carries meaning: a measurement, a size mark, a price level. Big light numerals for key figures. */
+:root{
+  --bg:#efefec; --panel:#ffffff; --panel-2:#f6f6f3; --line:#e4e4df; --text:#151515; --muted:#76766f;
+  --ink:#151515; --ink-2:#2a2a2a;
+  --lime:#dcf27a; --lilac:#d9cbf7; --sky:#bcd8f6; --butter:#f6ef8a; --blush:#f6cfdd; --mint:#cdebd8;
+  --accent:#151515; --accent-ink:#ffffff;
+  --good:#3f8f5f; --warn:#b7791f; --bad:#d9483b; --info:#3d6fd1;
+  --display:"Instrument Serif", Georgia, "Times New Roman", serif;
+  --body:"DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --r:18px;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--body);font-size:15px;line-height:1.5}
+a{color:var(--ink);text-decoration-color:#b9b9b2;text-underline-offset:3px}
+a:hover{text-decoration-color:var(--ink)}
+h1,h2,h3{text-wrap:balance;margin:0}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(44px,6vw,72px);line-height:.95;letter-spacing:-.01em}
+h2{font-size:19px;font-weight:600;letter-spacing:-.01em}
+h3{font-size:14.5px;font-weight:600}
+.num,td.num,.mono{font-variant-numeric:tabular-nums}
+.wrap{max-width:1200px;margin:0 auto;padding:32px 22px 80px}
+header.top{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:end;padding:4px 0 22px}
+header.top p{color:var(--muted);margin:10px 0 0;max-width:52ch}
+.meta{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.meta span{background:var(--panel);border-radius:999px;padding:6px 12px;font-size:12.5px;color:var(--muted)}
+.meta b{color:var(--text);font-weight:600}
+nav.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:0 0 22px;background:var(--panel);padding:6px;border-radius:16px}
+nav.steps button{all:unset;cursor:pointer;border-radius:12px;padding:10px 14px;display:flex;gap:12px;align-items:center}
+nav.steps button:hover{background:var(--panel-2)}
+nav.steps button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+nav.steps .n{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--panel-2);font-weight:600;font-size:12.5px;flex:none}
+nav.steps .t{display:grid;line-height:1.3}
+nav.steps .t b{font-weight:600;font-size:14px}
+nav.steps .t small{color:var(--muted);font-size:12px}
+nav.steps button[aria-current="page"]{background:var(--ink);color:#fff}
+nav.steps button[aria-current="page"] .n{background:var(--lime);color:var(--ink)}
+nav.steps button[aria-current="page"] .t small{color:#b9b9b2}
+.card{background:var(--panel);border-radius:var(--r);padding:20px}
+.card + .card{margin-top:16px}
+.stack{display:grid;gap:16px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.between{justify-content:space-between}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.btn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;background:var(--panel-2);border:1px solid var(--line);font-weight:500;font-size:13px;white-space:nowrap}
+.btn:hover{border-color:#c9c9c2}
+.btn:focus-visible,.chip:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+.btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.ghost:hover{background:var(--panel-2)}
+.btn.danger{color:var(--bad)}
+select,input[type=text],input[type=number],textarea{background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;font-size:14px}
+textarea{width:100%;min-height:110px;font-family:var(--mono);font-size:12.5px}
+label.f{display:grid;gap:4px;font-size:12px;color:var(--muted)}
+.chip{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;background:var(--panel);border:1px solid var(--line);font-size:13px}
+.chip:hover{border-color:#c9c9c2}
+.chip[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.dot{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block}
+.seg{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:3px}
+.seg button{all:unset;cursor:pointer;padding:5px 12px;border-radius:999px;font-size:13px;font-weight:500;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{font-size:12px;color:var(--muted);font-weight:500;background:var(--panel);position:sticky;top:0;white-space:nowrap;z-index:1}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:#fafaf8}
+td input[type=number]{width:80px;padding:5px 8px;font-size:13.5px;font-variant-numeric:tabular-nums;background:var(--panel);}
+td input[type=text]{width:112px;padding:5px 8px;background:var(--panel)}
+td input.flag{border-color:#e9c46a;background:#fff8e6}
+td input.bad{border-color:#f0a59d;background:#fdecea}
+input[type=checkbox]{accent-color:var(--ink);width:16px;height:16px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;background:var(--panel-2);white-space:nowrap}
+.pill.ok{background:var(--mint);color:#1e5a37}
+.pill.warn{background:#fbecc4;color:#7a4e0c}
+.pill.bad{background:#fbd9d5;color:#8e2a21}
+.pill.info{background:var(--sky);color:#1f3f7a}
+.grid2{display:grid;grid-template-columns:290px 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.tile{border-radius:16px;padding:14px 16px;background:var(--panel-2)}
+.tile:nth-child(1){background:var(--lime)}
+.tile:nth-child(2){background:var(--lilac)}
+.tile:nth-child(3){background:var(--sky)}
+.tile:nth-child(4){background:var(--butter)}
+.tile .v{font-size:32px;font-weight:300;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.15}
+.tile .k{font-size:12px;color:#3d3d38}
+.mlist{display:grid;gap:4px;max-height:580px;overflow:auto;padding-right:4px}
+.mitem{all:unset;cursor:pointer;display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;padding:10px 12px;border-radius:12px}
+.mitem:hover{background:var(--panel-2)}
+.mitem b{font-weight:500}
+.mitem small{grid-column:2;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.mitem[aria-pressed="true"]{background:var(--ink);color:#fff}
+.mitem[aria-pressed="true"] small{color:#b9b9b2}
+.mitem:focus-visible{outline:2px solid var(--ink)}
+svg text{fill:var(--muted);font-family:var(--body);font-size:11px}
+svg .lbl{fill:var(--text);font-weight:500}
+.cat{all:unset;cursor:pointer;background:var(--panel-2);border-radius:16px;padding:16px;display:grid;gap:4px;border:1px solid transparent}
+.cat:hover{border-color:var(--line)}
+.cat[aria-pressed="true"]{background:var(--ink);color:#fff}
+.cat[aria-pressed="true"] span{color:#b9b9b2}
+.cat:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.cat b{font-size:15px;font-weight:600}
+.cat span{color:var(--muted);font-size:12.5px}
+.tier{background:var(--panel);border-radius:18px;padding:18px;display:grid;gap:10px;align-content:start;border-top:10px solid var(--panel-2)}
+.tier[data-t="low"]{border-top-color:var(--sky)}
+.tier[data-t="mid"]{border-top-color:var(--lime)}
+.tier[data-t="premium"]{border-top-color:var(--lilac)}
+.tier.pick{background:var(--ink);color:#fff}
+.tier.pick .muted,.tier.pick ul .muted{color:#b9b9b2}
+.tier.pick a{color:#fff;text-decoration-color:#777}
+.tier.pick .pill.ok{background:var(--lime);color:var(--ink)}
+.tier .price{font-size:38px;font-weight:300;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+.tier ul{margin:0;padding-left:18px;display:grid;gap:6px;font-size:13px}
+.note{padding:12px 16px;background:var(--sky);border-radius:14px;font-size:13.5px}
+.note.warn{background:#fbecc4}
+.note.good{background:var(--lime)}
+.why{color:var(--muted);font-size:12.5px;max-width:440px}
+details summary{cursor:pointer;font-weight:600}
+.flags{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.flags li{display:flex;gap:8px;align-items:flex-start;font-size:13px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);align-items:center}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:999px;font-weight:500;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+footer{color:var(--muted);font-size:12.5px;margin-top:28px}
+footer ol{padding-left:18px;display:grid;gap:3px}
+.kicker{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+@media (max-width:900px){header.top{grid-template-columns:1fr}.meta{justify-content:flex-start}.grid2{grid-template-columns:1fr}.grid3{grid-template-columns:1fr}.tiles{grid-template-columns:repeat(2,1fr)}nav.steps{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div><span class="kicker">Anthropometry · Human factors</span><h1>Group Fit Planner</h1>
+    <p>Measure a group, see how its bodies vary, and turn the numbers into sizes and a shopping list.</p></div>
+    <div class="meta" id="meta"></div>
+  </header>
+  <nav class="steps" aria-label="Steps">
+    <button data-view="data"><span class="n">1</span><span class="t"><b>People &amp; measurements</b><small>Enter or import the group</small></span></button>
+    <button data-view="explore"><span class="n">2</span><span class="t"><b>Explore variation</b><small>Spread, extremes, correlations</small></span></button>
+    <button data-view="recommend"><span class="n">3</span><span class="t"><b>Sizes &amp; products</b><small>Recommendations within budget</small></span></button>
+  </nav>
+  <main id="main"></main>
+  <footer id="foot"></footer>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+"use strict";
+/* ------------------------------------------------------------------ */
+/* Measurement catalog. Tool + method notes for the deck's measures   */
+/* come from the Feb 2026 study (caliper S/L, tape, wooden tool).      */
+/* ------------------------------------------------------------------ */
+const MEAS = {
+  stature:{label:"Stature",tool:"Tape against a wall / stadiometer",how:"Standing tall, barefoot, heels together; floor to top of head.",min:70,max:220,color:"#5b9be0"},
+  popliteal:{label:"Popliteal height",tool:"Wooden block + tape",how:"Seated, thighs horizontal, lower legs vertical, feet flat; floor to the underside of the knee. EN 1729 uses this to pick seat height.",min:18,max:56,color:"#ec6a43"},
+  buttockPopliteal:{label:"Buttock–knee (popliteal) length",tool:"Large caliper",how:"Seated; back of buttocks to the back of the knee. Sets seat depth.",min:25,max:60,color:"#f09a6b"},
+  footLength:{label:"Foot length",tool:"Paper + ruler",how:"Standing with weight on both feet, in skating socks; heel to tip of the longest toe. Measure both feet and keep the longer.",min:10,max:34,color:"#8f63ef"},
+  footBreadth:{label:"Foot breadth",tool:"Small caliper",how:"Standing; widest point across the ball of the foot.",min:4,max:13,color:"#b49af2"},
+  chest:{label:"Chest circumference",tool:"Soft tape",how:"Around the fullest part of the chest, tape level. Subtract 2.5 cm (1 in) if measuring over clothes.",min:40,max:150,color:"#5f9e7a"},
+  waist:{label:"Waist circumference",tool:"Soft tape",how:"Around the natural waist, tape snug but not tight.",min:35,max:150,color:"#9fbf3b"},
+  earBreadth:{label:"Ear breadth",tool:"Caliper (S)",how:"Widest horizontal span of the ear.",min:2,max:5,color:"#ec6a43"},
+  earLength:{label:"Ear length",tool:"Caliper (S)",how:"Top of the ear to the bottom of the lobe.",min:4,max:8.5,color:"#f3a03d"},
+  handBreadth:{label:"Hand breadth",tool:"Caliper (S)",how:"Across the knuckles (metacarpals), fingers together.",min:5,max:11,color:"#e3c22f"},
+  handLength:{label:"Hand length",tool:"Caliper (S)",how:"Wrist crease to tip of the middle finger.",min:12,max:23,color:"#9fbf3b"},
+  palmLength:{label:"Palm length",tool:"Caliper (S)",how:"Wrist crease to the base of the middle finger.",min:7,max:13.5,color:"#5f9e7a"},
+  waistBreadth:{label:"Waist breadth",tool:"Caliper (L)",how:"Side to side across the waist.",min:18,max:45,color:"#3fa7a3"},
+  hipBreadth:{label:"Hip breadth",tool:"Caliper (L)",how:"Widest side-to-side span at the hips, standing.",min:24,max:50,color:"#5b9be0"},
+  biacromial:{label:"Biacromial breadth",tool:"Caliper (L)",how:"Between the bony tips of the shoulders (acromions).",min:20,max:48,color:"#3f6fd8"},
+  bideltoid:{label:"Bideltoid breadth",tool:"Caliper (L)",how:"Across the outside of the shoulder muscles.",min:28,max:60,color:"#8f63ef"},
+  interscye:{label:"Interscye",tool:"Tape",how:"Across the back between the armpit creases.",min:24,max:50,color:"#e46fa3"}
+};
+const EXTRA_COLORS=["#d9667f","#4fb0b0","#c08a3e","#7d8b99","#a3b83a","#6a8fe0"];
+const ALIASES={height:"stature",stature:"stature",bodyheight:"stature",popliteal:"popliteal",poplitealheight:"popliteal",kneeheight:"popliteal",lowerleg:"popliteal",foot:"footLength",footlength:"footLength",footwidth:"footBreadth",footbreadth:"footBreadth",chest:"chest",chestcircumference:"chest",bust:"chest",waist:"waist",waistcircumference:"waist",earbreadth:"earBreadth",earlength:"earLength",handbreadth:"handBreadth",handlength:"handLength",palmlength:"palmLength",waistbreadth:"waistBreadth",hipbreadth:"hipBreadth",biacromialbreadth:"biacromial",biaromialbreadth:"biacromial",biacromial:"biacromial",bideltoidbreadth:"bideltoid",bideloidbreadth:"bideltoid",bideltoid:"bideltoid",interscye:"interscye",buttockpopliteallength:"buttockPopliteal",seatdepth:"buttockPopliteal"};
+
+/* ------------------------------------------------------------------ */
+/* Sample groups                                                       */
+/* ------------------------------------------------------------------ */
+const STUDY_KEYS=["earBreadth","earLength","handBreadth","handLength","palmLength","stature","waistBreadth","hipBreadth","biacromial","bideltoid","interscye"];
+const STUDY_ROWS=[[3,6.5,7.8,17.7,10,168,27.8,35,24,38,28],[2.8,6.6,7.7,18.9,9.5,180,28,31.6,36.9,47.5,42.1],[2.9,6.4,7.9,19,9.4,167,27,32.8,27,39,29.7],[3.1,5.6,7.8,18,10.4,171,28.3,33.7,37,42.5,33],[3.2,6.6,8.7,17.4,11.4,179,28.7,32.4,36.8,45.2,39.8],[2.6,6.1,7.2,16.8,10.6,169,28.5,34.5,36.6,45.8,34.4],[2.6,6.4,7.4,17.2,9.7,165,23.4,29.8,26.8,36.4,34],[3.6,6.8,8.2,16.3,10.4,175,27.8,33.5,27.2,47.8,33.2],[2.6,5.9,7.4,17,9.2,162,22,28,23.8,42.6,31.6],[6.3,2.8,7.8,16.5,9.8,158,27,34,24,34,32.8],[3.2,6.7,8.2,18.5,10.3,185.4,28.8,35.9,38,46,36.7],[3.3,6.4,7.8,18,10.4,177,29.2,32.8,36.7,45.4,35.7],[3.6,5.8,6.4,19.4,11.2,174,32.6,38,27.5,49.5,36.8],[4.2,6.3,8.3,17,10.2,170,34,39,22.5,45,34]];
+function rng(seed){let s=seed>>>0;return()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296}}
+function gauss(r){let u=0,v=0;while(!u)u=r();while(!v)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+const r1=x=>Math.round(x*10)/10;
+function makeClassroom(){
+  const r=rng(42),people=[];
+  const names=["Ava","Ben","Chloe","Dev","Ema","Finn","Gia","Hugo","Iris","Jae","Kai","Lena","Milo","Nora","Omar","Pia","Quinn","Rosa","Sam","Tara","Umar","Vera","Wes","Yui"];
+  names.forEach((n,i)=>{
+    let st=132+gauss(r)*6; if(i===4)st=118.5; if(i===17)st=149;
+    const pop=st*0.262+gauss(r)*1.0, foot=st*0.152+gauss(r)*0.5, chest=st*0.5+gauss(r)*3, waist=st*0.43+gauss(r)*3;
+    people.push({id:"c"+i,label:n,consent:i!==11,values:{stature:r1(st),popliteal:r1(pop),footLength:r1(foot),chest:r1(chest),waist:r1(waist)}});
+  });
+  return {name:"Grade 3 classroom (example data)",active:["stature","popliteal","footLength","chest","waist"],people,cat:"furniture",note:"Synthetic example: 24 children aged about 8–9."};
+}
+function makeTeam(){
+  const r=rng(7),people=[];
+  const names=["Ari","Bea","Cleo","Dani","Elle","Fay","Gwen","Hana","Isla","Juno","Kit","Liv"];
+  names.forEach((n,i)=>{
+    const st=128+i*3.8+gauss(r)*2.5, foot=st*0.152+gauss(r)*0.6;
+    people.push({id:"t"+i,label:n,consent:true,values:{stature:r1(st),footLength:r1(foot),footBreadth:r1(foot*0.375+gauss(r)*0.35),popliteal:r1(st*0.258+gauss(r)*1),chest:r1(st*0.49+gauss(r)*3.5)}});
+  });
+  return {name:"Junior skating team (example data)",active:["stature","footLength","footBreadth","chest","popliteal"],people,cat:"skates",note:"Synthetic example: 12 skaters aged about 9–17."};
+}
+function makeStudy(){
+  return {name:"Anthropometry study, Feb 2026 (14 participants)",active:STUDY_KEYS.slice(),people:STUDY_ROWS.map((row,i)=>({id:"p"+(i+1),label:"P"+(i+1),consent:true,values:Object.fromEntries(STUDY_KEYS.map((k,j)=>[k,row[j]]))})),cat:"furniture",note:"Raw data from the IDST Design for Extreme Environments study (calipers, tape, wooden tool), collected 24 Feb 2026 with informed consent."};
+}
+const SAMPLES={classroom:makeClassroom,team:makeTeam,study:makeStudy};
+
+/* ------------------------------------------------------------------ */
+/* Standards and size charts (sources in the footer)                   */
+/* ------------------------------------------------------------------ */
+// EN 1729-1 size marks: popliteal & stature ranges (mm), chair and table heights (mm).
+const EN1729=[
+  {m:1,color:"Orange",hex:"#f39a3d",age:"3–4",pop:[250,280],stat:[930,1150],seat:260,table:460},
+  {m:2,color:"Violet",hex:"#a98be8",age:"4–6",pop:[280,315],stat:[1080,1210],seat:310,table:530},
+  {m:3,color:"Yellow",hex:"#e9c93a",age:"6–8",pop:[315,355],stat:[1190,1420],seat:350,table:590},
+  {m:4,color:"Red",hex:"#ec6a43",age:"8–11",pop:[355,405],stat:[1330,1590],seat:380,table:640},
+  {m:5,color:"Green",hex:"#5f9e7a",age:"11–14",pop:[405,435],stat:[1460,1765],seat:430,table:710},
+  {m:6,color:"Blue",hex:"#5b9be0",age:"14–adult",pop:[435,485],stat:[1590,1880],seat:460,table:760},
+  {m:7,color:"—",hex:"#8c8c86",age:"tall adult",pop:[485,600],stat:[1740,2070],seat:510,table:820}
+];
+// Boot sole length (mm) → blade length (in). John Wilson chart 8"–12"; Edea chart for 7"–7¾".
+const BLADES=[[179,7],[190,7.5],[200,7.75],[203,8],[210,8.25],[216,8.5],[222,8.75],[229,9],[235,9.25],[241,9.5],[248,9.75],[254,10],[260,10.25],[267,10.5],[273,10.75],[280,11],[286,11.25],[292,11.5],[299,11.75],[305,12]];
+// Lands' End kids chart: height range (in) and chest (in).
+const KIDS=[["XXS 2",33,35,20.5],["XXS 3",36,39,21],["XS 4",40,42,22],["XS 5",43,45,23],["S 6",46,47,24],["S 7",48,49,25.5],["M 8",50,53,26.5],["L 10",54,56,27.5],["L 12",57,59,28.5],["XL 14",60,62,30.5],["XL 16",63,65,32],["XXL 18",66,67,33.5],["XXL 20",68,69,35]];
+// Adult polo chest (in), Nike column of a brand comparison chart.
+const ADULT=[["S",37],["M",41],["L",44],["XL",48],["2XL",52]];
+
+/* ------------------------------------------------------------------ */
+/* Product catalog — prices checked 22 Nov 2026 (USD). They change.    */
+/* ------------------------------------------------------------------ */
+const CHECKED="22 Nov 2026";
+const PRODUCTS={
+ furniture:[
+  {tier:"low",kind:"desk",name:"Flash Furniture Billie adjustable student desk",price:83.99,range:[565,794],spec:"Adjusts 22¼–31¼ in (565–794 mm)",store:"WebstaurantStore",url:"https://www.webstaurantstore.com/flash-furniture-fd-desk-gg-natural-high-pressure-laminate-student-desk-with-open-front-book-box/354FDDESKGG.html"},
+  {tier:"low",kind:"chair",name:"Flash Furniture stackable school chair, 15.5 in seat",heights:[{mm:394,price:47.47}],spec:"One seat height, 394 mm. Sold as a 2-pack ($94.94)",store:"Walmart",url:"https://www.walmart.com/c/dp/reduced-price-in-school-furniture-equipment"},
+  {tier:"mid",kind:"desk",name:"Flash Furniture Billie adjustable student desk",price:83.99,range:[565,794],spec:"Adjusts 22¼–31¼ in (565–794 mm)",store:"WebstaurantStore",url:"https://www.webstaurantstore.com/flash-furniture-fd-desk-gg-natural-high-pressure-laminate-student-desk-with-open-front-book-box/354FDDESKGG.html"},
+  {tier:"mid",kind:"chair",name:"Virco 9000 Series stack chair",heights:[{mm:305,price:63.85,label:"12 in (9012)"},{mm:356,price:63.85,label:"14 in (9014)"},{mm:406,price:72.85,label:"16 in (9016)"},{mm:457,price:75.85,label:"18 in (9018)"}],spec:"Four fixed seat heights: 12, 14, 16, 18 in",store:"SchoolOutlet",url:"https://www.schooloutlet.com/Virco_9000_Series_s/994.htm"},
+  {tier:"premium",kind:"desk",name:"Regency adjustable classroom desk with book storage",price:250.56,range:[584,864],spec:"Adjusts 23–34 in (584–864 mm)",store:"Walmart",url:"https://www.walmart.com/ip/239080368"},
+  {tier:"premium",kind:"chair",name:"Virco ZUMA cantilever chair",heights:[{mm:330,price:164.95,label:"13 in"},{mm:381,price:188.95,label:"15 in"},{mm:457,price:188.95,label:"18 in"}],spec:"Listed $164.95–$188.95; the upper price is used where the exact height price isn't shown",store:"SchoolsIn",url:"https://www.schoolsin.com/vir-zuma-series-cantilever-school-chairs.html"}
+ ],
+ skates:[
+  {tier:"low",name:"Riedell Sparkle figure skate set",price:141.00,k:[8,21],spec:"Junior 8 to adult 8",store:"Walmart",url:"https://www.walmart.com/ip/Riedell-Figure-Skating-Set-Sparkle-Ice-Blue/16484570881"},
+  {tier:"low",name:"Riedell 119 Emerald (boot + Luna blade)",price:129.95,k:[9,26],spec:"Girls 9–3½, ladies 4–10, men 4–13. Price is the ladies' sale price",store:"Skates.com",url:"https://www.skates.com/products/riedell-emerald-119-womens-figure-skates"},
+  {tier:"mid",name:"Jackson Ultima Excel, girls'",price:179.95,k:[11.5,16],spec:"Youth 11½ to 3",store:"Inline Warehouse",url:"https://www.inlinewarehouse.com/Jackson_Excel/descpage-JEXG.html"},
+  {tier:"mid",name:"Jackson Ultima Excel, women's",price:189.95,k:[17,23],spec:"Adult 4–10",store:"Ice Warehouse",url:"https://www.icewarehouse.com/Jackson_Excel/descpage-JEXW.html"},
+  {tier:"premium",name:"Jackson Elle Fusion, girls'",price:409.95,k:[11,16.5],spec:"Youth 11 to 3½, R and W widths",store:"Inline Warehouse",url:"https://www.inlinewarehouse.com/Jackson_Elle_Fusion/descpage-JGEF.html"},
+  {tier:"premium",name:"Jackson Elle Fusion, women's",price:429.95,k:[17,23],spec:"Adult 4 and up, R and W widths",store:"Inline Warehouse",url:"https://www.inlinewarehouse.com/Jackson_Womens_Elle_Fusion_Figure_Skates/descpage-JWEF.html"}
+ ],
+ blade:{name:"John Wilson Coronation Ace blades",price:299.99,sizes:[7,12],store:"Northern Ice & Dance",url:"https://northerniceanddance.com/products/wilson-coronation-ace-skate-blades"},
+ uniforms:[
+  {tier:"low",name:"French Toast pique polo (kids 4–20)",price:11.18,rows:[2,12],spec:"Cotton-blend pique",store:"Walmart",url:"https://www.walmart.com/ip/56015679"},
+  {tier:"mid",name:"Lands' End interlock polo (kids 2–20)",price:18.36,rows:[0,12],spec:"100% cotton interlock. Sale price; list $22.95",store:"Lands' End",url:"https://www.landsend.com/products/school-uniform-short-sleeve-interlock-polo-shirt/id_364281"},
+  {tier:"premium",name:"Lands' End Rapid Dry polo (kids)",price:26.36,rows:[0,12],spec:"Moisture-wicking, UPF 50. Sale price; list $32.95",store:"Target",url:"https://www.target.com/p/-/A-86739690"}
+ ],
+ plywood:{name:"¾ in × 4 × 8 ft B3 birch plywood",price:148.00,store:"Home Depot",url:"https://www.homedepot.com/p/Falken-Design-3-4-in-x-4-ft-x-8-ft-B3-Birch-Plywood-FALKENDESIGN-PW-Birch-B3-3-4-4896/319125077"}
+};
+const TIERS=[["low","Low cost"],["mid","Mid-range"],["premium","Premium"]];
+
+/* ------------------------------------------------------------------ */
+/* State                                                               */
+/* ------------------------------------------------------------------ */
+let S;
+function freshState(sampleKey){
+  const g=SAMPLES[sampleKey]();
+  return {sample:sampleKey,groupName:g.name,groupNote:g.note,unit:"cm",active:g.active,people:g.people,custom:{},
+    explore:{a:"stature",b:g.active.find(k=>k!=="stature")||"stature"},
+    rec:{cat:g.cat,budget:"",budgetType:"person",qty:1,growth:false,chart:"auto",blades:false}};
+}
+function save(){try{localStorage.setItem("gfp-v1",JSON.stringify(S))}catch(e){}}
+function load(){try{const s=JSON.parse(localStorage.getItem("gfp-v1"));if(s&&s.people)return s}catch(e){}return null}
+S=load()||freshState("classroom");
+Object.entries(S.custom||{}).forEach(([k,v])=>{MEAS[k]=v});
+
+/* ------------------------------------------------------------------ */
+/* Helpers                                                             */
+/* ------------------------------------------------------------------ */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const money=x=>"$"+(Math.round(x*100)/100).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtLen=cm=>cm==null?"—":(S.unit==="in"?r1(cm/2.54)+" in":r1(cm)+" cm");
+const toDisp=cm=>cm==null||cm===""?"":(S.unit==="in"?r1(cm/2.54):r1(cm));
+const fromDisp=v=>S.unit==="in"?v*2.54:v;
+const mmIn=mm=>(mm/25.4).toFixed(1)+" in";
+const label=k=>(MEAS[k]&&MEAS[k].label)||k;
+const color=k=>(MEAS[k]&&MEAS[k].color)||"#999";
+function vals(k){return S.people.map(p=>p.values[k]).filter(v=>typeof v==="number"&&!isNaN(v))}
+function mean(a){return a.reduce((s,x)=>s+x,0)/a.length}
+function sd(a){if(a.length<2)return 0;const m=mean(a);return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1))}
+function quant(a,q){const s=[...a].sort((x,y)=>x-y);const i=(s.length-1)*q,lo=Math.floor(i),hi=Math.ceil(i);return s[lo]+(s[hi]-s[lo])*(i-lo)}
+function pairs(a,b){const xs=[],ys=[],ps=[];S.people.forEach(p=>{const x=p.values[a],y=p.values[b];if(typeof x==="number"&&typeof y==="number"){xs.push(x);ys.push(y);ps.push(p)}});return{xs,ys,ps}}
+function pearson(xs,ys){const n=xs.length;if(n<3)return null;const mx=mean(xs),my=mean(ys);let sxy=0,sxx=0,syy=0;for(let i=0;i<n;i++){sxy+=(xs[i]-mx)*(ys[i]-my);sxx+=(xs[i]-mx)**2;syy+=(ys[i]-my)**2}return sxx&&syy?sxy/Math.sqrt(sxx*syy):null}
+function linfit(xs,ys){const mx=mean(xs),my=mean(ys);let sxy=0,sxx=0;xs.forEach((x,i)=>{sxy+=(x-mx)*(ys[i]-my);sxx+=(x-mx)**2});const b=sxx?sxy/sxx:0;return{a:my-b*mx,b}}
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("on");setTimeout(()=>t.classList.remove("on"),1600)}
+async function copy(text,msg){try{await navigator.clipboard.writeText(text);toast(msg||"Copied")}catch(e){toast("Copy was blocked by the browser")}}
+
+/* Estimate a missing value from stature: the group's own regression when it is strong enough, otherwise a rule-of-thumb ratio. */
+const RATIO={popliteal:0.25,footLength:0.152};
+function getVal(p,k){
+  const v=p.values[k];
+  if(typeof v==="number")return{v,est:false};
+  if(!(k in RATIO))return null;
+  const st=p.values.stature; if(typeof st!=="number")return null;
+  const {xs,ys}=pairs("stature",k); const r=pearson(xs,ys);
+  if(xs.length>=6&&r!==null&&r>=0.5){const f=linfit(xs,ys);return{v:f.a+f.b*st,est:true,how:`estimated from stature using this group's own data (r = ${r.toFixed(2)}, n = ${xs.length})`}}
+  return{v:st*RATIO[k],est:true,how:`estimated as ${RATIO[k]} × stature (rule of thumb, low confidence)`};
+}
+
+/* Data-quality checks, following the study's evaluation (validity & reliability). */
+function checks(){
+  const out=[],cell={};
+  const mark=(pid,k,lvl)=>{cell[pid+"|"+k]=lvl};
+  S.people.forEach(p=>{
+    if(!p.consent)out.push({lvl:"warn",p,msg:"No consent recorded. Record consent before keeping or sharing this person's data."});
+    Object.entries(p.values).forEach(([k,v])=>{const m=MEAS[k];if(!m||typeof v!=="number")return;if(m.min!=null&&(v<m.min||v>m.max)){out.push({lvl:"bad",p,k,msg:`${label(k)} ${fmtLen(v)} is outside the usual range (${m.min}–${m.max} cm). Check the unit or a typing error.`});mark(p.id,k,"bad")}});
+    const sw=[["earBreadth","earLength"],["palmLength","handLength"],["footBreadth","footLength"],["popliteal","stature"]];
+    sw.forEach(([a,b])=>{const x=p.values[a],y=p.values[b];if(typeof x==="number"&&typeof y==="number"&&x>=y){out.push({lvl:"bad",p,k:a,msg:`${label(a)} (${fmtLen(x)}) is larger than ${label(b)} (${fmtLen(y)}). The two values may have been swapped.`});mark(p.id,a,"bad");mark(p.id,b,"bad")}});
+  });
+  S.active.forEach(k=>{const a=vals(k);if(a.length<8)return;const m=mean(a),s=sd(a);if(!s)return;S.people.forEach(p=>{const v=p.values[k];if(typeof v!=="number")return;const z=(v-m)/s;if(Math.abs(z)>2.5&&!cell[p.id+"|"+k]){out.push({lvl:"warn",p,k,msg:`${label(k)} ${fmtLen(v)} is ${Math.abs(z).toFixed(1)} SD from the group mean. Re-measure if possible; if it's real, this person is an extreme user to design for.`});mark(p.id,k,"flag")}})});
+  return{list:out,cell};
+}
+
+/* ------------------------------------------------------------------ */
+/* Recommendation engines                                              */
+/* ------------------------------------------------------------------ */
+function recFurniture(p){
+  const pop=getVal(p,"popliteal"),st=p.values.stature;
+  if(!pop&&typeof st!=="number")return{ok:false,need:"popliteal height or stature"};
+  let m,basis,warn="";
+  const byStat=mm=>{let best=null,bd=1e9;EN1729.forEach(e=>{if(mm>=e.stat[0]&&mm<=e.stat[1]){const d=Math.abs(mm-(e.stat[0]+e.stat[1])/2);if(d<bd){bd=d;best=e}}});return best||(mm<930?EN1729[0]:EN1729[6])};
+  if(pop&&!pop.est){
+    const mm=pop.v*10; m=EN1729.find(e=>mm>=e.pop[0]&&mm<e.pop[1])||(mm<250?EN1729[0]:EN1729[6]);
+    basis=`Popliteal height ${fmtLen(pop.v)} falls in size mark ${m.m}'s range (${m.pop[0]}–${m.m===7?"485+":m.pop[1]} mm).`;
+    if(typeof st==="number"){const s2=byStat(st*10);if(Math.abs(s2.m-m.m)>=1&&!(st*10>=m.stat[0]&&st*10<=m.stat[1]))warn=`Stature points to size mark ${s2.m}; legs are long or short for this height. Seat follows the legs; check the desk height in person.`}
+  }else if(typeof st==="number"){
+    m=byStat(st*10); basis=`No popliteal height, so stature ${fmtLen(st)} was used (size mark ${m.m} covers ${m.stat[0]}–${m.stat[1]} mm). Measuring popliteal height is more accurate.`;
+  }else{
+    const mm=pop.v*10; m=EN1729.find(e=>mm>=e.pop[0]&&mm<e.pop[1])||(mm<250?EN1729[0]:EN1729[6]); basis=`Popliteal height ${pop.how}.`;
+  }
+  const sizeLabel=`Size mark ${m.m}`;
+  let depth="";const bp=p.values.buttockPopliteal;if(typeof bp==="number")depth=`, seat depth ≤ ${Math.round(bp*8)} mm`;
+  return{ok:true,key:m.m,size:sizeLabel,sub:`seat ${m.seat} mm · desk ${m.table} mm${depth}`,seat:m.seat,table:m.table,swatch:m.hex,
+    why:basis+` EN 1729 pairs size mark ${m.m} (${m.color.toLowerCase()==="—"?"no colour code":m.color.toLowerCase()} code, about ages ${m.age}) with a ${m.seat} mm seat and ${m.table} mm desk.`,warn};
+}
+function skateK(cm){const L=cm/2.54;return 6+(L-5.1875)*3}
+function skateLabel(k){if(k<14)return"Junior "+k;if(k<17)return"Youth "+(k-13);return"Adult "+(k-13)}
+function recSkates(p){
+  const f=getVal(p,"footLength");
+  if(!f)return{ok:false,need:"foot length (or stature to estimate it)"};
+  const kRaw=skateK(f.v),k=Math.max(6,Math.ceil(kRaw*2)/2);
+  const adult=k>=17, allow=adult?6.35:9.5, sole=f.v*10+allow;
+  let blade=BLADES[0];BLADES.forEach(b=>{if(Math.abs(b[0]-sole)<Math.abs(blade[0]-sole))blade=b});
+  let width="",wNote="";const fb=p.values.footBreadth;
+  if(typeof fb==="number"&&!f.est){const ratio=fb/f.v;width=ratio<0.36?"narrow":ratio>0.40?"wide":"medium";wNote=` Breadth ÷ length = ${ratio.toFixed(2)} → ${width} width (rough guide; widths vary by brand).`}
+  const bladeTxt=(blade[1]%1===0?blade[1]:blade[1].toString().replace(".25","¼").replace(".5","½").replace(".75","¾"))+'"';
+  return{ok:true,key:k,size:skateLabel(k),sub:`blade ≈ ${bladeTxt}${width?" · "+width+" width":""}`,k,blade:blade[1],width,est:f.est,
+    why:`${f.est?"Foot length "+f.how+": "+fmtLen(f.v)+". ":"Foot length "+fmtLen(f.v)+". "}On the foot-length charts each half size is about ⅙ in, so this is ${skateLabel(k)} (rounded up, never below the foot). Boot sole ≈ foot + ${adult?"¼":"⅜"} in = ${Math.round(sole)} mm → ${bladeTxt} blade.${wNote}`,
+    warn:f.est?"Foot length was estimated. Measure the foot before ordering skates.":""};
+}
+function uniChart(){if(S.rec.chart!=="auto")return S.rec.chart;const st=vals("stature");return st.length&&quant(st,0.5)>160?"adult":"kids"}
+function recUniform(p){
+  const st=p.values.stature,ch=p.values.chest,mode=uniChart();
+  if(mode==="adult"){
+    if(typeof ch==="number"){const ci=ch/2.54;let i=ADULT.findIndex(a=>a[1]>=ci-0.5);if(i<0)i=ADULT.length-1;return{ok:true,key:100+i,size:"Adult "+ADULT[i][0],sub:`chest ${r1(ci)} in`,kind:"adult",row:i,why:`Adult polos are sized by chest: ${r1(ci)} in fits ${ADULT[i][0]} (${ADULT[i][1]} in on the chart).`,warn:""}}
+    if(typeof st!=="number")return{ok:false,need:"chest circumference"};
+    const cut=[165,175,183];let i=st<cut[0]?0:st<cut[1]?1:st<cut[2]?2:3;
+    return{ok:true,key:100+i,size:"Adult "+ADULT[i][0],sub:"from stature only",kind:"adult",row:i,why:`No chest measurement, so stature ${fmtLen(st)} gave a rough adult size.`,warn:"Measure chest circumference to confirm adult sizes."};
+  }
+  if(typeof st!=="number")return{ok:false,need:"stature"};
+  const hi=st/2.54;let i=KIDS.findIndex(r=>hi<=r[2]+0.99);let why=`Height ${r1(hi)} in → ${KIDS[Math.max(i,0)][0]} (height is the best first guide for children's sizes).`;let warn="";
+  if(i<0){i=KIDS.length-1;warn="Taller than the kids' chart; consider adult sizes.";}
+  if(typeof ch==="number"){const ci=ch/2.54;const start=i;while(i<KIDS.length-1&&KIDS[i][3]<ci-1)i++;if(i>start)why+=` Chest ${r1(ci)} in is roomier than ${KIDS[start][0]} (${KIDS[start][3]} in), so it moved up to ${KIDS[i][0]}.`;}
+  if(S.rec.growth&&i<KIDS.length-1){i++;why+=` One size added for growth.`}
+  return{ok:true,key:i,size:KIDS[i][0],sub:`chart height ${KIDS[i][1]}–${KIDS[i][2]} in`,kind:"kids",row:i,why,warn};
+}
+const CATS={
+  furniture:{title:"Classroom desk & chair",blurb:"EN 1729 size marks from popliteal height or stature",needs:["popliteal","stature"],fn:recFurniture,unit:"set"},
+  skates:{title:"Figure skates & blades",blurb:"Boot size from foot length, blade from boot sole",needs:["footLength","footBreadth"],fn:recSkates,unit:"pair"},
+  uniforms:{title:"Uniform polos (S / M / L)",blurb:"Kids by height then chest; adults by chest",needs:["stature","chest"],fn:recUniform,unit:"item"}
+};
+
+/* Product fit: what each person would get from each tier. */
+function fitsFor(cat,rec){
+  const out={};
+  if(!rec.ok)return out;
+  TIERS.forEach(([t])=>{
+    if(cat==="furniture"){
+      const desk=PRODUCTS.furniture.find(x=>x.tier===t&&x.kind==="desk"),chair=PRODUCTS.furniture.find(x=>x.tier===t&&x.kind==="chair");
+      const dOk=rec.table>=desk.range[0]-10&&rec.table<=desk.range[1]+10;
+      let best=chair.heights[0];chair.heights.forEach(h=>{if(Math.abs(h.mm-rec.seat)<Math.abs(best.mm-rec.seat))best=h});
+      const cOk=Math.abs(best.mm-rec.seat)<=25;
+      let reason="";if(!dOk)reason=`desk needs ${rec.table} mm; this one adjusts ${desk.range[0]}–${desk.range[1]} mm`;else if(!cOk)reason=`seat needs ${rec.seat} mm; closest chair is ${best.mm} mm (${best.mm-rec.seat>0?"+":""}${best.mm-rec.seat})`;
+      out[t]={ok:dOk&&cOk,price:desk.price+best.price,items:[{p:desk,size:`set to ${rec.table} mm (${mmIn(rec.table)})`,price:desk.price,url:desk.url,name:desk.name},{p:chair,size:`${best.label||mmIn(best.mm)+" seat"} · ${best.mm} mm`,price:best.price,url:best.url||chair.url,name:chair.name}],reason};
+    }else if(cat==="skates"){
+      const c=PRODUCTS.skates.filter(x=>x.tier===t&&rec.k>=x.k[0]&&rec.k<=x.k[1]).sort((a,b)=>a.price-b.price)[0];
+      out[t]=c?{ok:true,price:c.price,items:[{p:c,size:rec.size,price:c.price,url:c.url,name:c.name}]}:{ok:false,reason:`no ${t} skate in the catalog comes in ${rec.size}`};
+      if(c&&S.rec.blades){const b=PRODUCTS.blade;out[t].price+=b.price;out[t].items.push({p:b,size:rec.blade+'"',price:b.price,url:b.url,name:b.name})}
+    }else{
+      if(rec.kind!=="kids"){out[t]={ok:false,reason:"the catalog only has kids' uniform polos"};return}
+      const c=PRODUCTS.uniforms.find(x=>x.tier===t&&rec.row>=x.rows[0]&&rec.row<=x.rows[1]);
+      out[t]=c?{ok:true,price:c.price,items:[{p:c,size:rec.size,price:c.price,url:c.url,name:c.name}]}:{ok:false,reason:`no ${t} polo in ${rec.size}`};
+    }
+  });
+  return out;
+}
+function computeAll(){
+  const cat=S.rec.cat,qty=Math.max(1,parseInt(S.rec.qty)||1);
+  const rows=S.people.map(p=>{const rec=CATS[cat].fn(p);return{p,rec,fits:fitsFor(cat,rec)}});
+  const tiers=TIERS.map(([t,name])=>{let n=0,total=0;const out=[];rows.forEach(r=>{const f=r.fits[t];if(f&&f.ok){n++;total+=f.price*qty}else if(r.rec.ok)out.push({p:r.p,reason:f?f.reason:""})});return{t,name,n,total,out}});
+  // Budget plan
+  const B=parseFloat(S.rec.budget);let plan=null;
+  if(B>0){
+    const pick=(r,maxPrice)=>{let best=null;TIERS.forEach(([t])=>{const f=r.fits[t];if(f&&f.ok&&f.price*qty<=maxPrice+1e-9&&(!best||f.price>best.f.price))best={t,f}});return best};
+    const cheapest=r=>{let best=null;TIERS.forEach(([t])=>{const f=r.fits[t];if(f&&f.ok&&(!best||f.price<best.f.price))best={t,f}});return best};
+    if(S.rec.budgetType==="person"){
+      const assign=rows.map(r=>({r,a:pick(r,B),c:cheapest(r)}));
+      const total=assign.reduce((s,x)=>s+(x.a?x.a.f.price*qty:0),0);
+      plan={type:"person",B,assign,total};
+    }else{
+      // Highest single tier the whole group can afford; people that tier can't fit fall back to their cheapest fitting option.
+      let chosen=null;
+      for(const [t] of [...TIERS].reverse()){
+        const assign=rows.map(r=>{const f=r.fits[t];const a=f&&f.ok?{t,f}:cheapest(r);return{r,a,c:cheapest(r)}});
+        const total=assign.reduce((s,x)=>s+(x.a?x.a.f.price*qty:0),0);
+        if(total<=B+1e-9){chosen={type:"total",B,assign,total,tier:t};break}
+      }
+      if(!chosen){const assign=rows.map(r=>({r,a:cheapest(r),c:cheapest(r)}));const total=assign.reduce((s,x)=>s+(x.a?x.a.f.price*qty:0),0);chosen={type:"total",B,assign,total,tier:null,over:true}}
+      // Spend leftover: upgrade people one at a time, smallest first, while it stays within budget.
+      if(!chosen.over){let left=B-chosen.total;const order=chosen.assign.slice().sort((a,b)=>(a.r.rec.key||0)-(b.r.rec.key||0));let changed=true;while(changed){changed=false;for(const x of order){const up=TIERS.map(t=>t[0]).filter(t=>x.r.fits[t]&&x.r.fits[t].ok&&x.r.fits[t].price>(x.a?x.a.f.price:0)).sort((a,b)=>x.r.fits[a].price-x.r.fits[b].price)[0];if(up){const extra=(x.r.fits[up].price-(x.a?x.a.f.price:0))*qty;if(extra<=left+1e-9){left-=extra;x.a={t:up,f:x.r.fits[up]};changed=true}}}}chosen.total=B-left}
+      plan=chosen;
+    }
+  }
+  return{rows,tiers,plan,qty};
+}
+
+/* ------------------------------------------------------------------ */
+/* Rendering                                                           */
+/* ------------------------------------------------------------------ */
+function view(){const h=location.hash.replace("#","");return["data","explore","recommend"].includes(h)?h:"data"}
+function render(){
+  save();
+  const v=view();
+  document.querySelectorAll("nav.steps button").forEach(b=>b.removeAttribute("aria-current"));
+  const cur=document.querySelector(`nav.steps button[data-view="${v}"]`);if(cur)cur.setAttribute("aria-current","page");
+  const cons=S.people.filter(p=>p.consent).length;
+  $("#meta").innerHTML=`<span><b>${esc(S.groupName)}</b></span><span><b>${S.people.length}</b> people</span><span><b>${S.active.length}</b> measurements</span><span><b>${cons}/${S.people.length}</b> consented</span>`;
+  $("#main").innerHTML=v==="data"?viewData():v==="explore"?viewExplore():viewRecommend();
+  $("#foot").innerHTML=footer();
+}
+
+/* ---------- Step 1: data ---------- */
+function viewData(){
+  const q=checks();
+  const head=`<tr><th>Person</th><th>Consent</th>${S.active.map(k=>`<th><span class="dot" style="background:${color(k)}"></span> ${esc(label(k))}<br><span class="muted small">${S.unit}</span></th>`).join("")}<th></th></tr>`;
+  const body=S.people.map((p,i)=>`<tr>
+    <td><input type="text" id="lbl-${p.id}" data-act="label" data-id="${p.id}" value="${esc(p.label)}" aria-label="Name or ID for row ${i+1}"></td>
+    <td><input type="checkbox" id="con-${p.id}" data-act="consent" data-id="${p.id}" ${p.consent?"checked":""} aria-label="Consent recorded for ${esc(p.label)}"></td>
+    ${S.active.map(k=>{const fl=q.cell[p.id+"|"+k];return`<td><input type="number" step="0.1" inputmode="decimal" id="v-${p.id}-${k}" data-act="val" data-id="${p.id}" data-k="${k}" value="${toDisp(p.values[k])}" class="${fl||""}" aria-label="${esc(label(k))} for ${esc(p.label)}"></td>`}).join("")}
+    <td><button class="btn ghost danger" data-act="del" data-id="${p.id}" aria-label="Remove ${esc(p.label)}">Remove</button></td></tr>`).join("");
+  const allKeys=Object.keys(MEAS);
+  return `<div class="stack">
+  <section class="card stack">
+    <div class="row between"><div><h2>Group</h2><p class="muted small" style="margin:4px 0 0">${esc(S.groupNote||"")}</p></div>
+      <div class="row">
+        <label class="f" for="sample">Load a group<select id="sample" data-act="sample"><option value="">Choose…</option><option value="classroom">Grade 3 classroom (example)</option><option value="team">Junior skating team (example)</option><option value="study">Feb 2026 study: 14 adults</option><option value="empty">Start empty</option></select></label>
+        <label class="f" for="gname">Group name<input type="text" id="gname" data-act="gname" value="${esc(S.groupName)}"></label>
+        <div class="f"><span>Units</span><div class="seg" role="group" aria-label="Units"><button data-act="unit" data-u="cm" aria-pressed="${S.unit==="cm"}">cm</button><button data-act="unit" data-u="in" aria-pressed="${S.unit==="in"}">in</button></div></div>
+      </div></div>
+    <div><h3 style="margin-bottom:8px">Measurements in this table</h3>
+      <div class="row">${allKeys.map(k=>`<button class="chip" data-act="toggle" data-k="${k}" aria-pressed="${S.active.includes(k)}"><span class="dot" style="background:${color(k)}"></span>${esc(label(k))}</button>`).join("")}
+      <span class="row"><input type="text" id="newm" placeholder="New measurement name" aria-label="New measurement name"><button class="btn" data-act="addm">Add measurement</button></span></div>
+      <p class="muted small" style="margin:8px 0 0">Quick picks: <button class="btn ghost" data-act="preset" data-p="furniture">Furniture</button> <button class="btn ghost" data-act="preset" data-p="skates">Skating</button> <button class="btn ghost" data-act="preset" data-p="uniforms">Uniforms</button> <button class="btn ghost" data-act="preset" data-p="study">Study (11)</button></p>
+    </div>
+  </section>
+  <section class="card stack">
+    <div class="row between"><h2>Measurements</h2>
+      <div class="row"><button class="btn primary" data-act="addp">+ Add person</button><button class="btn" data-act="copycsv">Copy as CSV</button></div></div>
+    <div class="legend"><span><span class="pill bad">red</span> impossible or swapped value</span><span><span class="pill warn">amber</span> more than 2.5 SD from the group</span><span>Values save in this browser as you type.</span></div>
+    <div class="tablewrap" style="max-height:520px"><table><thead>${head}</thead><tbody>${body||`<tr><td colspan="${S.active.length+3}" class="muted">No one yet. Add a person or paste a table below.</td></tr>`}</tbody></table></div>
+  </section>
+  <div class="grid3" style="grid-template-columns:1.2fr 1fr">
+  <section class="card stack">
+    <h2>Paste or import a group</h2>
+    <p class="muted small" style="margin:0">Paste from a spreadsheet with a header row: names in the first column, one measurement per column (e.g. <span class="mono">Name, Stature, Foot length</span>). The study layout, with measurements as rows and participants as columns, also works. Values are read in <b>${S.unit}</b>.</p>
+    <textarea id="paste" aria-label="Paste table" placeholder="Name\tStature\tPopliteal height\tFoot length&#10;Ava\t131.5\t34.2\t20.1"></textarea>
+    <div class="row"><button class="btn primary" data-act="import" data-mode="replace">Replace group</button><button class="btn" data-act="import" data-mode="append">Add to group</button><label class="btn" for="file">Open CSV file…</label><input type="file" id="file" accept=".csv,.tsv,.txt" hidden></div>
+  </section>
+  <section class="card stack">
+    <h2>Data checks</h2>
+    ${q.list.length?`<ul class="flags">${q.list.slice(0,12).map(f=>`<li><span class="pill ${f.lvl}">${esc(f.p.label)}</span><span>${esc(f.msg)}</span></li>`).join("")}</ul>${q.list.length>12?`<p class="muted small">+ ${q.list.length-12} more</p>`:""}`:`<p class="note good">No problems found.</p>`}
+    <p class="muted small" style="margin:0">Checks follow the study's evaluation: posture, who measures, compression and clothing all shift readings. Have one person take each measurement, the same way, in light clothing.</p>
+  </section></div>
+  <section class="card"><details><summary>How to take each measurement</summary>
+    <div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>Measurement</th><th>Tool</th><th>Method</th></tr></thead><tbody>${S.active.map(k=>`<tr><td><span class="dot" style="background:${color(k)}"></span> ${esc(label(k))}</td><td>${esc(MEAS[k].tool||"—")}</td><td class="small">${esc(MEAS[k].how||"—")}</td></tr>`).join("")}</tbody></table></div>
+    <p class="muted small">Before measuring: explain the aim and procedure, note the right to withdraw, collect a signed consent form, and store data by ID, not name.</p></details></section>
+  </div>`;
+}
+
+/* ---------- Step 2: explore ---------- */
+function stripSVG(k){
+  const pts=S.people.map(p=>({p,v:p.values[k]})).filter(o=>typeof o.v==="number").sort((a,b)=>a.v-b.v);
+  if(pts.length<2)return`<p class="muted">Need at least two values.</p>`;
+  const W=640,H=150,L=40,R=40,mn=pts[0].v,mx=pts[pts.length-1].v,pad=(mx-mn)*0.08||1,lo=mn-pad,hi=mx+pad;
+  const x=v=>L+(v-lo)/(hi-lo)*(W-L-R);
+  const vs=pts.map(o=>o.v),m=mean(vs);
+  let band="";if(pts.length>=10){band=`<rect x="${x(quant(vs,.05))}" y="48" width="${x(quant(vs,.95))-x(quant(vs,.05))}" height="44" fill="${color(k)}" opacity=".10" rx="6"/><text x="${x(quant(vs,.95))}" y="42" text-anchor="end">middle 90%</text>`}
+  const ticks=[];const step=niceStep((hi-lo)/5);for(let t=Math.ceil(lo/step)*step;t<=hi;t+=step)ticks.push(t);
+  const stack={};const dots=pts.map(o=>{const bx=Math.round(x(o.v)/9);stack[bx]=(stack[bx]||0)+1;const yy=70-(stack[bx]-1)*9*(stack[bx]%2?1:-1)/2;return`<circle cx="${x(o.v)}" cy="${yy}" r="5.5" fill="${color(k)}" stroke="#ffffff" stroke-width="1.5"><title>${esc(o.p.label)}: ${fmtLen(o.v)}</title></circle>`}).join("");
+  const a=pts[0],b=pts[pts.length-1];
+  return`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Each person's ${esc(label(k))} on one axis">
+   ${ticks.map(t=>`<line x1="${x(t)}" x2="${x(t)}" y1="40" y2="104" stroke="#ececE7"/><text x="${x(t)}" y="120" text-anchor="middle">${disp(t)}</text>`).join("")}
+   ${band}<line x1="${x(m)}" x2="${x(m)}" y1="36" y2="104" stroke="#151515" stroke-dasharray="3 3"/><text x="${x(m)}" y="30" text-anchor="middle" class="lbl">mean ${disp(m)}</text>
+   ${dots}
+   <text x="${x(a.v)}" y="142" text-anchor="start" class="lbl">▲ smallest: ${esc(a.p.label)}</text><text x="${x(b.v)}" y="142" text-anchor="end" class="lbl">largest: ${esc(b.p.label)} ▲</text>
+  </svg>`;
+}
+const disp=v=>S.unit==="in"?r1(v/2.54):r1(v);
+function niceStep(s){const p=Math.pow(10,Math.floor(Math.log10(s)));const n=s/p;return(n<1.5?1:n<3?2:n<7?5:10)*p}
+function scatterSVG(a,b){
+  const {xs,ys,ps}=pairs(a,b);if(xs.length<3)return`<p class="muted">Need at least three people with both values.</p>`;
+  const W=640,H=330,L=50,R=20,T=20,B=44;
+  const ext=arr=>{const mn=Math.min(...arr),mx=Math.max(...arr),pd=(mx-mn)*.1||1;return[mn-pd,mx+pd]};
+  const [x0,x1]=ext(xs),[y0,y1]=ext(ys);const X=v=>L+(v-x0)/(x1-x0)*(W-L-R),Y=v=>T+(1-(v-y0)/(y1-y0))*(H-T-B);
+  const f=linfit(xs,ys);const sx=niceStep((x1-x0)/5),sy=niceStep((y1-y0)/4);
+  let g="";for(let t=Math.ceil(x0/sx)*sx;t<=x1;t+=sx)g+=`<line x1="${X(t)}" x2="${X(t)}" y1="${T}" y2="${H-B}" stroke="#efefeb"/><text x="${X(t)}" y="${H-B+16}" text-anchor="middle">${disp(t)}</text>`;
+  for(let t=Math.ceil(y0/sy)*sy;t<=y1;t+=sy)g+=`<line x1="${L}" x2="${W-R}" y1="${Y(t)}" y2="${Y(t)}" stroke="#efefeb"/><text x="${L-6}" y="${Y(t)+4}" text-anchor="end">${disp(t)}</text>`;
+  return`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(label(a))} against ${esc(label(b))}">${g}
+   <line x1="${X(x0)}" y1="${Y(f.a+f.b*x0)}" x2="${X(x1)}" y2="${Y(f.a+f.b*x1)}" stroke="#151515" stroke-width="1.5" stroke-dasharray="5 4" opacity=".55"/>
+   ${ps.map((p,i)=>`<circle cx="${X(xs[i])}" cy="${Y(ys[i])}" r="5.5" fill="${color(b)}" stroke="#ffffff" stroke-width="1.5"><title>${esc(p.label)}: ${fmtLen(xs[i])}, ${fmtLen(ys[i])}</title></circle><text x="${X(xs[i])+8}" y="${Y(ys[i])+4}" font-size="10">${esc(p.label)}</text>`).join("")}
+   <text x="${(L+W-R)/2}" y="${H-6}" text-anchor="middle" class="lbl">${esc(label(a))} (${S.unit})</text>
+   <text transform="translate(12 ${(T+H-B)/2}) rotate(-90)" text-anchor="middle" class="lbl">${esc(label(b))} (${S.unit})</text></svg>`;
+}
+function rColor(r){if(r===null)return"#f6f6f3";const a=Math.min(1,Math.abs(r));return r>=0?`rgba(95,158,122,${0.08+a*0.82})`:`rgba(236,106,67,${0.08+a*0.82})`}
+function viewExplore(){
+  const ks=S.active.filter(k=>vals(k).length>=2);
+  if(!ks.length)return`<section class="card"><p>Add measurements in step 1 to explore them.</p></section>`;
+  if(!ks.includes(S.explore.a))S.explore.a=ks[0];
+  if(!ks.includes(S.explore.b))S.explore.b=ks.find(k=>k!==S.explore.a)||ks[0];
+  const a=S.explore.a,v=vals(a),m=mean(v),s=sd(v),mn=Math.min(...v),mx=Math.max(...v);
+  const {xs,ys}=pairs(a,S.explore.b);const r=pearson(xs,ys);
+  const prs=[];for(let i=0;i<ks.length;i++)for(let j=i+1;j<ks.length;j++){const P=pairs(ks[i],ks[j]);const rr=pearson(P.xs,P.ys);if(rr!==null)prs.push([ks[i],ks[j],rr])}
+  prs.sort((x,y)=>y[2]-x[2]);
+  const cellSz=ks.length>8?30:40;
+  const heat=`<div class="tablewrap" style="border:none"><table style="width:auto;border-collapse:separate;border-spacing:2px"><thead><tr><th style="background:none"></th>${ks.map(k=>`<th style="background:none;writing-mode:vertical-rl;transform:rotate(180deg);height:150px;font-weight:500;vertical-align:bottom">${esc(label(k))}</th>`).join("")}</tr></thead><tbody>${ks.map((k,i)=>`<tr><th style="background:none;font-weight:500;text-align:right">${esc(label(k))}</th>${ks.map((k2,j)=>{if(j>i)return`<td style="border:none"></td>`;const P=pairs(k,k2);const rr=i===j?1:pearson(P.xs,P.ys);return`<td class="num" style="border:none;width:${cellSz}px;height:${cellSz}px;text-align:center;font-size:11px;padding:0;border-radius:8px;color:${rr!==null&&Math.abs(rr)>0.55?"#fff":"#151515"};background:${rColor(rr)};cursor:pointer" data-act="pair" data-a="${k2}" data-b="${k}" title="${esc(label(k))} × ${esc(label(k2))}: r = ${rr===null?"n/a":rr.toFixed(2)}">${rr===null?"":rr.toFixed(2).replace("0.",".")}</td>`}).join("")}</tr>`).join("")}</tbody></table></div>`;
+  return`<div class="grid2">
+   <aside class="card"><h3 style="margin-bottom:4px">Measurement points</h3><p class="muted small" style="margin:0 0 10px">Select one to analyse</p>
+    <div class="mlist">${ks.map(k=>{const vv=vals(k);return`<button class="mitem" data-act="pick" data-k="${k}" aria-pressed="${k===a}"><span class="dot" style="background:${color(k)}"></span><b>${esc(label(k))}</b><small>Max/Min: ${disp(Math.max(...vv))}/${disp(Math.min(...vv))} ${S.unit}</small></button>`}).join("")}</div></aside>
+   <div class="stack">
+    <section class="card stack"><div class="row between"><div><h2><span class="dot" style="background:${color(a)};width:12px;height:12px"></span> ${esc(label(a))}</h2><p class="muted small" style="margin:2px 0 0">${v.length} of ${S.people.length} people measured</p></div></div>
+     <div class="tiles"><div class="tile"><div class="k">Average</div><div class="v">${disp(m)}</div></div><div class="tile"><div class="k">Range</div><div class="v">${disp(mn)}–${disp(mx)}</div></div><div class="tile"><div class="k">Spread (SD)</div><div class="v">±${disp(s)}</div></div><div class="tile"><div class="k">Largest ÷ smallest</div><div class="v">${(mx/mn).toFixed(2)}×</div></div></div>
+     ${stripSVG(a)}
+     <p class="note small" style="margin:0">Designing for the average fits nobody in particular. The two labelled people at the ends are the extreme users: if a product fits both of them, it fits the group on this dimension.</p></section>
+    <section class="card stack"><div class="row between"><h2>Compare two measurements</h2>
+      <label class="f" for="pb">Against<select id="pb" data-act="pickb">${ks.filter(k=>k!==a).map(k=>`<option value="${k}" ${k===S.explore.b?"selected":""}>${esc(label(k))}</option>`).join("")}</select></label></div>
+     ${scatterSVG(a,S.explore.b)}
+     <p class="small" style="margin:0"><span class="pill ${r===null?"":Math.abs(r)>=0.6?"ok":Math.abs(r)>=0.4?"info":"warn"}">r = ${r===null?"n/a":r.toFixed(2)}</span> <span class="muted">${r===null?"":Math.abs(r)>=0.8?"Very strong: one predicts the other well.":Math.abs(r)>=0.6?"Strong relationship.":Math.abs(r)>=0.4?"Moderate: related, but plenty of people break the pattern.":"Weak: knowing one tells you little about the other, so size each separately."} With ${xs.length} people, treat r as a hint; one swapped or mis-measured value can flip it.</span></p></section>
+    <section class="card stack"><h2>Correlation map</h2><p class="muted small" style="margin:0">Green = grow together, red = opposite. Select a cell to compare that pair above.</p>${heat}
+     <div class="grid3" style="grid-template-columns:1fr 1fr"><div><h3>Strongest pairs</h3><ol class="small">${prs.slice(0,5).map(p=>`<li>${esc(label(p[0]))} × ${esc(label(p[1]))} <span class="num muted">${p[2].toFixed(2)}</span></li>`).join("")}</ol></div><div><h3>Weakest pairs</h3><ol class="small">${prs.slice(-5).reverse().map(p=>`<li>${esc(label(p[0]))} × ${esc(label(p[1]))} <span class="num muted">${p[2].toFixed(2)}</span></li>`).join("")}</ol></div></div></section>
+   </div></div>`;
+}
+
+/* ---------- Step 3: recommend ---------- */
+function distSVG(rows){
+  const groups={};rows.forEach(r=>{if(!r.rec.ok)return;const g=groups[r.rec.key]||(groups[r.rec.key]={label:r.rec.size,n:0,sw:r.rec.swatch});g.n++});
+  const keys=Object.keys(groups).map(Number).sort((a,b)=>a-b);if(!keys.length)return"";
+  const W=640,H=40+keys.length*30,L=150,max=Math.max(...keys.map(k=>groups[k].n));
+  return`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="People per size">${keys.map((k,i)=>{const g=groups[k],w=(W-L-60)*g.n/max,y=10+i*30;return`<text x="${L-10}" y="${y+16}" text-anchor="end" class="lbl">${esc(g.label)}</text><rect x="${L}" y="${y}" width="${Math.max(w,2)}" height="22" rx="11" fill="${g.sw||"#151515"}"/><text x="${L+w+8}" y="${y+16}" class="lbl">${g.n}</text>`}).join("")}</svg>`;
+}
+function viewRecommend(){
+  const cat=S.rec.cat,C=CATS[cat];const {rows,tiers,plan,qty}=computeAll();
+  const okRows=rows.filter(r=>r.rec.ok);const missing=rows.filter(r=>!r.rec.ok);const est=okRows.filter(r=>r.rec.est||/estimated/.test(r.rec.why)).length;
+  const nSizes=new Set(okRows.map(r=>r.rec.key)).size;
+  let insight="";
+  if(cat==="furniture"&&okRows.length){const seats=okRows.map(r=>r.rec.seat),tabs=okRows.map(r=>r.rec.table);insight=`This group needs <b>${nSizes}</b> size mark${nSizes>1?"s":""}: seats from <b>${Math.min(...seats)}</b> to <b>${Math.max(...seats)} mm</b> and desks from <b>${Math.min(...tabs)}</b> to <b>${Math.max(...tabs)} mm</b>. ${nSizes>1?"One fixed-height set won't fit everyone; adjustable desks plus two or more chair heights will.":"One size fits the whole group."}`}
+  if(cat==="skates"&&okRows.length){const ks=okRows.map(r=>r.rec.k);insight=`Boot sizes run from <b>${skateLabel(Math.min(...ks))}</b> to <b>${skateLabel(Math.max(...ks))}</b> across <b>${nSizes}</b> sizes. Skate fit is individual: use these as the starting size to try on, and re-measure growing feet every few months.`}
+  if(cat==="uniforms"&&okRows.length){insight=`The group spans <b>${nSizes}</b> sizes. ${uniChart()==="kids"?"Children's sizes follow height first; chest moves someone up a size when the chart runs tight.":"Adult sizes follow chest circumference."}`}
+  const budgetRow=`<div class="row" style="align-items:flex-end">
+    <label class="f" for="budget">Budget (USD, optional)<input type="number" id="budget" min="0" step="1" data-act="budget" value="${esc(S.rec.budget)}" placeholder="e.g. 2500" style="width:140px"></label>
+    <div class="f"><span>Budget is</span><div class="seg" role="group" aria-label="Budget type"><button data-act="btype" data-v="person" aria-pressed="${S.rec.budgetType==="person"}">per person</button><button data-act="btype" data-v="total" aria-pressed="${S.rec.budgetType==="total"}">for the group</button></div></div>
+    <label class="f" for="qty">${cat==="uniforms"?"Items per person":"Quantity per person"}<input type="number" id="qty" min="1" step="1" data-act="qty" value="${qty}" style="width:80px"></label>
+    ${cat==="uniforms"?`<label class="row small" for="growth"><input type="checkbox" id="growth" data-act="growth" ${S.rec.growth?"checked":""}> Add a size for growth</label><label class="f" for="chart">Size chart<select id="chart" data-act="chart"><option value="auto" ${S.rec.chart==="auto"?"selected":""}>Auto (${uniChart()==="kids"?"kids":"adults"})</option><option value="kids" ${S.rec.chart==="kids"?"selected":""}>Kids (by height)</option><option value="adult" ${S.rec.chart==="adult"?"selected":""}>Adults (by chest)</option></select></label>`:""}
+    ${cat==="skates"?`<label class="row small" for="blades"><input type="checkbox" id="blades" data-act="blades" ${S.rec.blades?"checked":""}> Add separate upgrade blades</label>`:""}
+  </div>`;
+  // Plan banner
+  let planHTML="";
+  if(plan){
+    const per=plan.type==="person";const unaff=plan.assign.filter(x=>x.r.rec.ok&&!x.a);
+    const counts={};plan.assign.forEach(x=>{if(x.a)counts[x.a.t]=(counts[x.a.t]||0)+1});
+    const parts=TIERS.filter(([t])=>counts[t]).map(([t,n])=>`${counts[t]} × ${n.toLowerCase()}`).join(", ");
+    if(per)planHTML=`<div class="note ${unaff.length?"warn":"good"}"><b>${money(plan.B)} per person:</b> ${parts||"nothing fits"} — total <span class="num">${money(plan.total)}</span>.${unaff.length?` ${unaff.length} ${unaff.length>1?"people":"person"} can't be covered within ${money(plan.B)}: ${unaff.map(x=>`${esc(x.r.p.label)}${x.c?` (cheapest fit ${money(x.c.f.price*qty)})`:""}`).join(", ")}.`:""}</div>`;
+    else planHTML=plan.over?`<div class="note warn"><b>Over budget.</b> Even the cheapest fitting option for everyone costs <span class="num">${money(plan.total)}</span>, ${money(plan.total-plan.B)} more than ${money(plan.B)}.</div>`:`<div class="note good"><b>Within ${money(plan.B)}:</b> ${parts} — <span class="num">${money(plan.total)}</span> total, <span class="num">${money(plan.B-plan.total)}</span> left. Started from the best tier the whole group can afford, then upgraded people one at a time while money remained.</div>`;
+  }
+  // Tier cards (always shown; highlighted when a budget picks one)
+  const tierCards=`<div class="grid3">${tiers.map(T=>{const prods=cat==="furniture"?PRODUCTS.furniture.filter(p=>p.tier===T.t):cat==="skates"?PRODUCTS.skates.filter(p=>p.tier===T.t):PRODUCTS.uniforms.filter(p=>p.tier===T.t);
+    const pick=plan&&plan.type==="total"&&plan.tier===T.t;
+    return`<article class="tier ${pick?"pick":""}" data-t="${T.t}"><div class="row between"><h3>${T.name}</h3>${pick?`<span class="pill ok">Budget pick</span>`:""}</div>
+      <div class="price">${T.n?money(T.total):"—"}</div><div class="muted small">group total for the ${T.n} it fits${T.n?` · ${money(T.total/T.n)} each`:""}</div>
+      <span class="pill ${T.n===okRows.length&&T.n?"ok":T.n?"warn":"bad"}">Fits ${T.n} of ${okRows.length}</span>
+      <ul>${prods.map(p=>`<li><a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.name)}</a> <span class="num muted">${p.price?money(p.price):p.heights?p.heights.map(h=>money(h.price)).filter((x,i,a)=>a.indexOf(x)===i).join(" / "):""}</span><br><span class="muted">${esc(p.spec)} · ${esc(p.store)}</span></li>`).join("")}</ul>
+      ${T.out.length?`<details><summary class="small">Who it leaves out (${T.out.length})</summary><ul>${T.out.slice(0,10).map(o=>`<li><b>${esc(o.p.label)}</b>: ${esc(o.reason)}</li>`).join("")}${T.out.length>10?`<li>…and ${T.out.length-10} more</li>`:""}</ul></details>`:""}
+    </article>`}).join("")}</div>`;
+  // Maker card for furniture
+  let maker="";
+  if(cat==="furniture"&&okRows.length){
+    const bym={};okRows.forEach(r=>{(bym[r.rec.key]=bym[r.rec.key]||{n:0,r:r.rec}).n++});const n=okRows.length;const sheets=Math.ceil(n/2);const cost=sheets*PRODUCTS.plywood.price+n*20;
+    maker=`<section class="card stack"><div class="row between"><h2>Make it yourself</h2><span class="pill info">fits everyone exactly</span></div>
+      <p class="small" style="margin:0">Building to each size mark avoids the gaps in what's sold. Heights to build, by size mark:</p>
+      <div class="tablewrap"><table><thead><tr><th>Size mark</th><th>People</th><th>Seat height</th><th>Desk height</th><th>Desk height (in)</th></tr></thead><tbody>${Object.keys(bym).sort((a,b)=>a-b).map(k=>{const g=bym[k];return`<tr><td><span class="dot" style="background:${g.r.swatch}"></span> ${k}</td><td class="num">${g.n}</td><td class="num">${g.r.seat} mm</td><td class="num">${g.r.table} mm</td><td class="num">${mmIn(g.r.table)}</td></tr>`}).join("")}</tbody></table></div>
+      <p class="small" style="margin:0">Materials estimate: <span class="num">${sheets}</span> sheets of <a href="${PRODUCTS.plywood.url}" target="_blank" rel="noopener">${esc(PRODUCTS.plywood.name)}</a> at ${money(PRODUCTS.plywood.price)} (${esc(PRODUCTS.plywood.store)}) plus about $20 per set for hardware and finish ≈ <b class="num">${money(cost)}</b> for ${n} sets. Assumes half a sheet per desk-and-chair set; adjust for your design.</p></section>`;
+  }
+  // Per-person table
+  const ptable=`<div class="tablewrap" style="max-height:560px"><table><thead><tr><th>Person</th><th>Recommendation</th><th>Why</th>${plan?"<th>Budget plan</th>":""}</tr></thead><tbody>${rows.map(r=>{const x=plan&&plan.assign.find(a=>a.r===r);
+    if(!r.rec.ok)return`<tr><td><b>${esc(r.p.label)}</b></td><td><span class="pill bad">Missing data</span></td><td class="why">Needs ${esc(r.rec.need)}. Add it in step 1.</td>${plan?"<td></td>":""}</tr>`;
+    return`<tr><td><b>${esc(r.p.label)}</b></td><td><div class="row" style="gap:6px">${r.rec.swatch?`<span class="dot" style="background:${r.rec.swatch}"></span>`:""}<b>${esc(r.rec.size)}</b></div><span class="muted small">${esc(r.rec.sub)}</span>${r.rec.warn?`<br><span class="pill warn" title="${esc(r.rec.warn)}">check</span>`:""}</td>
+      <td class="why">${esc(r.rec.why)}${r.rec.warn?`<br><span style="color:var(--warn)">${esc(r.rec.warn)}</span>`:""}</td>
+      ${plan?`<td class="small">${x&&x.a?`<span class="pill ok">${TIERS.find(t=>t[0]===x.a.t)[1]}</span> <span class="num">${money(x.a.f.price*qty)}</span><br>${x.a.f.items.map(i=>`<a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.name)}</a> · ${esc(i.size)}`).join("<br>")}`:`<span class="pill bad">Not covered</span>${x&&x.c?`<br><span class="muted">cheapest fit ${money(x.c.f.price*qty)}</span>`:`<br><span class="muted">nothing in the catalog fits</span>`}`}</td>`:""}</tr>`}).join("")}</tbody></table></div>`;
+  // Shopping list
+  const lines={};const src=plan?plan.assign.filter(x=>x.a).map(x=>x.a.f):null;
+  let listHTML="",listText="";
+  if(src){src.forEach(f=>f.items.forEach(i=>{const key=i.name+"|"+i.size;const l=lines[key]||(lines[key]={name:i.name,size:i.size,price:i.price,url:i.url,n:0});l.n+=qty}));
+    const L=Object.values(lines).sort((a,b)=>a.name.localeCompare(b.name)||a.size.localeCompare(b.size));const tot=L.reduce((s,l)=>s+l.n*l.price,0);
+    listText=L.map(l=>`${l.n} × ${l.name} — ${l.size} @ ${money(l.price)} = ${money(l.n*l.price)}\n   ${l.url}`).join("\n")+`\nTotal: ${money(tot)} (prices checked ${CHECKED})`;
+    listHTML=`<section class="card stack"><div class="row between"><h2>Shopping list</h2><button class="btn" data-act="copylist">Copy list</button></div>
+      <div class="tablewrap"><table><thead><tr><th>Item</th><th>Size / setting</th><th>Qty</th><th>Each</th><th>Subtotal</th></tr></thead><tbody>${L.map(l=>`<tr><td><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name)}</a></td><td>${esc(l.size)}</td><td class="num">${l.n}</td><td class="num">${money(l.price)}</td><td class="num">${money(l.n*l.price)}</td></tr>`).join("")}<tr><td colspan="4"><b>Total</b></td><td class="num"><b>${money(tot)}</b></td></tr></tbody></table></div></section>`;
+    window.__list=listText;}
+  return`<div class="stack">
+   <section class="card stack"><h2>What are you choosing?</h2>
+    <div class="grid3">${Object.entries(CATS).map(([k,c])=>`<button class="cat" data-act="cat" data-c="${k}" aria-pressed="${k===cat}"><b>${c.title}</b><span>${c.blurb}</span></button>`).join("")}</div>
+    <div class="row small">${C.needs.map(k=>{const n=S.people.filter(p=>typeof p.values[k]==="number").length;return`<span class="pill ${n===S.people.length?"ok":n?"warn":"bad"}"><span class="dot" style="background:${color(k)}"></span>${esc(label(k))}: ${n}/${S.people.length}</span>`}).join("")}${est?`<span class="muted">${est} recommendation${est>1?"s use":" uses"} an estimated value (shown in "Why").</span>`:""}</div>
+    ${budgetRow}</section>
+   ${planHTML}
+   <section class="card stack"><div class="row between"><h2>Sizes for ${esc(S.groupName)}</h2><span class="muted small">${okRows.length} of ${rows.length} sized${missing.length?` · ${missing.length} missing data`:""}</span></div>
+    ${insight?`<p style="margin:0">${insight}</p>`:""}${distSVG(rows)}</section>
+   <section class="stack"><div class="row between"><h2>${plan?"Price levels":"Three price levels"}</h2><span class="muted small">Prices checked ${CHECKED}; they change, so confirm before ordering.</span></div>${tierCards}</section>
+   ${maker}
+   <section class="card stack"><h2>Person by person</h2>${ptable}</section>
+   ${listHTML||(okRows.length?`<p class="muted small">Enter a budget to get a shopping list with quantities per size.</p>`:"")}
+  </div>`;
+}
+function footer(){return`<details><summary>Method and sources</summary><ol>
+ <li>Method from the Feb 2026 anthropometry study: informed consent → raw measurements → correlation analysis → visualisation, with checks for posture, measurer, compression, clothing, sampling bias and sample size.</li>
+ <li>EN 1729-1 size marks (popliteal and stature ranges, chair and table heights): <a href="https://www.officeboffins.co.uk/info/information/table-chair-height-guide/" target="_blank" rel="noopener">BS EN 1729 size-mark guide</a>; size 7 values from <a href="https://catas.com/uploads/media/catas-chairs-tables-school-eng.pdf?v3.1" target="_blank" rel="noopener">CATAS</a> and a <a href="https://cdn.shopify.com/s/files/1/0299/1534/9091/files/VS-_Chair_Sizing_Chart.pdf" target="_blank" rel="noopener">VS chair chart</a>.</li>
+ <li>Skate size from foot length: <a href="https://www.sportsunlimitedinc.com/riedell-figure-skate-sizing-information.html" target="_blank" rel="noopener">Riedell sizing chart</a> (about ⅓ in per full size); boot allowance from <a href="https://www.ice.riedellskates.com/faqs" target="_blank" rel="noopener">Riedell FAQ</a>; blade by boot length: <a href="https://willies.co.uk/blogs/blog/john-wilson-blades-size-chart-for-figure-skaters" target="_blank" rel="noopener">John Wilson chart</a> and <a href="https://www.willies.co.uk/blogs/blog/edea-ice-skate-size-charts-sizing-advice" target="_blank" rel="noopener">Edea chart</a>. The width guide is a rough rule of thumb.</li>
+ <li>Kids' uniform sizes: <a href="https://www.kohls.com/product/prd-5894627/kids-2-20-lands-end-school-uniform-short-sleeve-interlock-polo-shirt.jsp?prdPV=6" target="_blank" rel="noopener">Lands' End kids' chart</a>; adult chest sizes: <a href="https://www.scheels.com/size-chart/waggle-golf-mens-apparel-size-chart" target="_blank" rel="noopener">brand comparison chart</a> (Nike column).</li>
+ <li>Estimates for missing values use this group's own stature regression when r ≥ 0.5 with 6+ people, otherwise a rule-of-thumb ratio. Always measure before buying.</li>
+ <li>Product prices and links were checked ${CHECKED} and will change.</li></ol></details>`}
+
+/* ------------------------------------------------------------------ */
+/* Import                                                              */
+/* ------------------------------------------------------------------ */
+function keyFor(h){
+  const n=String(h).toLowerCase().replace(/\(.*?\)/g,"").replace(/[^a-z]/g,"");
+  if(ALIASES[n])return ALIASES[n];
+  const hit=Object.keys(MEAS).find(k=>MEAS[k].label.toLowerCase().replace(/[^a-z]/g,"")===n);if(hit)return hit;
+  if(!n)return null;
+  const k="c_"+n.slice(0,24);if(!MEAS[k]){MEAS[k]={label:String(h).trim(),tool:"",how:"",color:EXTRA_COLORS[Object.keys(S.custom).length%EXTRA_COLORS.length]};S.custom[k]=MEAS[k]}
+  return k;
+}
+function parseTable(text){
+  const lines=text.replace(/\r/g,"").split("\n").filter(l=>l.trim());if(lines.length<2)return null;
+  const sep=lines[0].includes("\t")?"\t":lines[0].includes(";")&&!lines[0].includes(",")?";":",";
+  let grid=lines.map(l=>l.split(sep).map(c=>c.trim().replace(/^"|"$/g,"")));
+  // Study layout: measurements as rows. Detect when first-column cells look like measurement names.
+  const firstCol=grid.slice(1).map(r=>r[0]);const known=firstCol.filter(c=>{const n=c.toLowerCase().replace(/\(.*?\)/g,"").replace(/[^a-z]/g,"");return ALIASES[n]||Object.values(MEAS).some(m=>m.label.toLowerCase().replace(/[^a-z]/g,"")===n)}).length;
+  if(known>=Math.max(2,firstCol.length/2)){
+    // Drop leading columns that aren't numeric data (e.g. "Measuring tool").
+    let start=1;while(start<grid[0].length&&grid.slice(1).every(r=>isNaN(parseFloat(r[start]))))start++;
+    const nameCol=start-1;const heads=grid[0].slice(start);
+    const t=[["Name",...grid.slice(1).map(r=>r[nameCol])]];heads.forEach((h,j)=>t.push([h,...grid.slice(1).map(r=>r[start+j])]));grid=t;
+  }
+  const header=grid[0];const keys=header.slice(1).map(keyFor);
+  const people=grid.slice(1).map((r,i)=>{const values={};keys.forEach((k,j)=>{const v=parseFloat(String(r[j+1]).replace(",","."));if(k&&!isNaN(v))values[k]=Math.round(fromDisp(v)*100)/100});return{id:"i"+Date.now().toString(36)+i,label:r[0]||("Person "+(i+1)),consent:false,values}});
+  return{keys:keys.filter(Boolean),people};
+}
+function doImport(text,mode){
+  const res=parseTable(text);if(!res||!res.people.length){toast("Couldn't read that table. Include a header row.");return}
+  if(mode==="replace"){S.people=res.people;S.groupName="Imported group";S.groupNote="Imported. Tick consent for each person once it's recorded."}else S.people=S.people.concat(res.people);
+  res.keys.forEach(k=>{if(!S.active.includes(k))S.active.push(k)});
+  toast(`Imported ${res.people.length} people`);render();
+}
+function toCSV(){const h=["Name","Consent",...S.active.map(k=>`${label(k)} (${S.unit})`)];return[h.join(","),...S.people.map(p=>[`"${p.label.replace(/"/g,'""')}"`,p.consent?"yes":"no",...S.active.map(k=>toDisp(p.values[k]))].join(","))].join("\n")}
+
+/* ------------------------------------------------------------------ */
+/* Events                                                              */
+/* ------------------------------------------------------------------ */
+const PRESETS={furniture:["stature","popliteal","buttockPopliteal"],skates:["stature","footLength","footBreadth"],uniforms:["stature","chest","waist"],study:STUDY_KEYS};
+function rerenderKeepFocus(){setTimeout(()=>{const id=document.activeElement&&document.activeElement.id;render();if(id){const el=document.getElementById(id);if(el)el.focus()}},0)}
+document.addEventListener("click",e=>{
+  const nb=e.target.closest("nav.steps button");if(nb){location.hash=nb.dataset.view;return}
+  const b=e.target.closest("[data-act]");if(!b)return;const a=b.dataset.act;
+  if(b.tagName==="INPUT"||b.tagName==="SELECT")return;
+  if(a==="unit"){S.unit=b.dataset.u;render()}
+  else if(a==="toggle"){const k=b.dataset.k;S.active=S.active.includes(k)?S.active.filter(x=>x!==k):[...S.active,k];render()}
+  else if(a==="preset"){PRESETS[b.dataset.p].forEach(k=>{if(!S.active.includes(k))S.active.push(k)});render()}
+  else if(a==="addm"){const n=$("#newm").value.trim();if(!n)return;const k=keyFor(n);if(!S.active.includes(k))S.active.push(k);render()}
+  else if(a==="addp"){const id="n"+Date.now().toString(36);S.people.push({id,label:"Person "+(S.people.length+1),consent:false,values:{}});render();const el=document.getElementById("lbl-"+id);if(el){el.focus();el.select()}}
+  else if(a==="del"){S.people=S.people.filter(p=>p.id!==b.dataset.id);render()}
+  else if(a==="copycsv")copy(toCSV(),"CSV copied");
+  else if(a==="import")doImport($("#paste").value,b.dataset.mode);
+  else if(a==="pick"){S.explore.a=b.dataset.k;if(S.explore.b===S.explore.a)S.explore.b=S.active.find(k=>k!==S.explore.a);render()}
+  else if(a==="pair"){if(b.dataset.a===b.dataset.b)return;S.explore.a=b.dataset.a;S.explore.b=b.dataset.b;render();window.scrollTo({top:0,behavior:"smooth"})}
+  else if(a==="cat"){S.rec.cat=b.dataset.c;if(S.rec.cat!=="uniforms")S.rec.qty=1;render()}
+  else if(a==="btype"){S.rec.budgetType=b.dataset.v;render()}
+  else if(a==="copylist")copy(window.__list||"","Shopping list copied");
+});
+document.addEventListener("change",e=>{
+  const t=e.target,a=t.dataset&&t.dataset.act;
+  if(t.id==="file"&&t.files&&t.files[0]){t.files[0].text().then(txt=>{$("#paste").value=txt;doImport(txt,"replace")});return}
+  if(!a)return;
+  const p=t.dataset.id&&S.people.find(x=>x.id===t.dataset.id);
+  if(a==="val"&&p){const v=parseFloat(t.value);if(t.value===""||isNaN(v))delete p.values[t.dataset.k];else p.values[t.dataset.k]=Math.round(fromDisp(v)*100)/100;rerenderKeepFocus()}
+  else if(a==="label"&&p){p.label=t.value.trim()||p.label;rerenderKeepFocus()}
+  else if(a==="consent"&&p){p.consent=t.checked;rerenderKeepFocus()}
+  else if(a==="gname"){S.groupName=t.value.trim()||S.groupName;render()}
+  else if(a==="sample"){const v=t.value;if(!v)return;if(v==="empty"){S.people=[];S.groupName="New group";S.groupNote="Add people one at a time, or paste a table.";S.active=["stature"]}else{const keepUnit=S.unit;S=freshState(v);S.unit=keepUnit}render()}
+  else if(a==="pickb"){S.explore.b=t.value;render()}
+  else if(a==="budget"){S.rec.budget=t.value;rerenderKeepFocus()}
+  else if(a==="qty"){S.rec.qty=Math.max(1,parseInt(t.value)||1);rerenderKeepFocus()}
+  else if(a==="growth"){S.rec.growth=t.checked;render()}
+  else if(a==="blades"){S.rec.blades=t.checked;render()}
+  else if(a==="chart"){S.rec.chart=t.value;render()}
+});
+window.addEventListener("hashchange",()=>{render();window.scrollTo(0,0)});
+render();
+</script>
+</body>
+</html>
